@@ -200,6 +200,17 @@ void World::SolveCollections(const std::vector<Contact> &contacts, double dt) {
     }
 }
 
+void World::CorrectPositions(const std::vector<Contact> &contacts) {
+    for (const auto& contact : contacts) {
+        // Linear-only effective mass: the correction is a pure translation.
+        double invMassSum = contact.rb1.GetInvMass() + contact.rb2.GetInvMass();
+        if (invMassSum == 0.0) {
+            continue;
+        }
+        Rigidbody::PositionalCorrection(contact.rb1, contact.rb2, contact.penetration, contact.normal, invMassSum);
+    }
+}
+
 void World::SolveJoints(const std::vector<Joint*>& joints, double dt) {
     for (auto& joint : joints) {
         joint->Solve(dt);
@@ -284,6 +295,7 @@ void World::Update(bool updateComponen) {
         SolveJoints(GetAllJoints(), tick);
     }
 
+    CorrectPositions(collections);
     IntegrateAll(tick);
 }
 
