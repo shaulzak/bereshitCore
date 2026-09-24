@@ -43,7 +43,8 @@ There is no test framework. Files under `test/` are scenario programs, each in i
   2. apply gravity to all rigidbodies
   3. broad phase `Collider::SweepAndPrune` on AABBs, then narrow phase `CheckCollision` (SAT in `Collider`/`BoxCollider`), producing a `std::vector<Contact>` (skipped if both bodies are kinematic)
   4. iterate `physics_epochs + 1` times: sequential impulses (`Rigidbody::SolveImpulse` with friction/restitution), then `Joint::Solve`, then `Component::PhysicsUpdate`
-  5. integrate every rigidbody
+  5. positional correction once per step (`World::CorrectPositions` → `Rigidbody::PositionalCorrection`, linear-only inverse-mass sum). It is intentionally **not** called from inside `SolveImpulse`, so it doesn't run once per solver iteration
+  6. integrate every rigidbody
 - **Joints**: `Joint` is the base class (anchors, effective-mass matrix `K`, 3x3/2x2 solvers, Baumgarte `beta`). Subclasses (`FixedJoint`, `HingeJoint`) override `SolveLinear` / `SolveAngular`. A joint is attached to body A and references body B through its constructor argument.
 - **Physics** holds a static `World*` for global queries such as `Physics::RayCast`.
 - **Python bindings** (`bindings.cpp`): `PyComponent` is a pybind11 trampoline that lets Python subclasses of `Component` override `Start`, `Update`, `PhysicsUpdate`, `Copy`, `ResetToDefault`, and `OnCollisionEnter`. If you expose another virtual hook to Python, add an override to the trampoline.
