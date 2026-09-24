@@ -18,7 +18,6 @@ private:
     static double GetFrictionCoefficient(const Rigidbody&, const Rigidbody&);
     void UpdateInertiaWorld();
     double restitution = 0.6;
-    static void PositionalCorrection(const Rigidbody&, const Rigidbody&, double,const Vector3&, double);
     static void ApplyFrictionImpulse(Rigidbody& rb1, Rigidbody& rb2,const Vector3& relativeVelocity,
         const Vector3& normal , double J, const Vector3& r1, const Vector3& r2);
 
@@ -93,6 +92,7 @@ public:
     void PhysicsUpdateFirstIteration(double dt) override;
     void integrate(double dt);
     void ForceIntegrate(double dt);
+    static void PositionalCorrection(const Rigidbody&, const Rigidbody&, double,const Vector3&, double);
     static void SolveImpulse(Rigidbody& rb1, Rigidbody& rb2, const Vector3& contact_point, const Vector3& normal, double penetration, double dt);
     double (*GetInvertWorld())[3][3] {
         return &InvertWorld;
