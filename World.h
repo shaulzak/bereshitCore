@@ -66,7 +66,7 @@ class World {
         std::vector<Joint*>& GetAllJoints();
         std::vector<GameObject*> getGizmos() const;
         std::vector<GameObject*> search_by_component(std::string name) const;
-        static void SolveCollections(const std::vector<Contact>&, double);
+        static void SolveCollections(std::vector<Contact>&, double);
         static void CorrectPositions(const std::vector<Contact>&);
         void SolveJoints(const std::vector<Joint*>& joints, double dt);
 

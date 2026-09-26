@@ -4,6 +4,9 @@
 
 #include "HingeJoint.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "Rigidbody.h"
 #include "World.h"
 
@@ -118,5 +121,55 @@ void HingeJoint::SolveAngular(double dt) {
     if (!rbB->IsKinematic()) {
         rbB->angularVelocity += ang_impulse.MatrixMultiplication(*IinvB);
 
+    }
+
+    if (motorEnabled) {
+        double k = axis_world.dot(axis_world.MatrixMultiplication(K));  // K = IinvA + IinvB
+        if (k > 0) {
+            Vector3 motor_rel_w = rbB->angularVelocity - rbA->angularVelocity;
+            double lambda = -(axis_world.dot(motor_rel_w) - motorSpeed) / k;
+            if (!std::isfinite(lambda)) {
+                lambda = 0.0;
+            }
+            double maxImpulse = maxMotorTorque * dt;
+            double previous = motorImpulse;
+            motorImpulse = std::max(std::min(previous + lambda, maxImpulse), -maxImpulse);
+            Vector3 motor_impulse = axis_world * (motorImpulse - previous);
+            if (!rbA->IsKinematic()) {
+                rbA->angularVelocity -= motor_impulse.MatrixMultiplication(*IinvA);
+            }
+            if (!rbB->IsKinematic()) {
+                rbB->angularVelocity += motor_impulse.MatrixMultiplication(*IinvB);
+            }
+        }
+    }
+}
+
+void HingeJoint::ResetToDefault() {
+    motorImpulse = 0.0;
+}
+
+void HingeJoint::PhysicsUpdate(double dt) {
+    // Called once per tick before the solver iterations. Warm start: begin from last tick's motor
+    // impulse, so a steady holding torque (e.g. against gravity) isn't rebuilt from zero every tick.
+    // Light bodies between two joints (ankle / hip blocks) make that rebuild converge very slowly.
+    // A NaN impulse (after the simulation blew up) would otherwise survive every clamp and reset.
+    if (!motorEnabled || !std::isfinite(motorImpulse)) {
+        motorImpulse = 0.0;
+        if (!motorEnabled) {
+            return;
+        }
+    }
+    double maxImpulse = maxMotorTorque * dt;
+    motorImpulse = std::max(std::min(motorImpulse, maxImpulse), -maxImpulse);
+    if (motorImpulse != 0.0) {
+        Vector3 axis_world = transformA->quaternion.RotateConjugated(axisLocal).normalized();
+        Vector3 impulse = axis_world * motorImpulse;
+        if (!rbA->IsKinematic()) {
+            rbA->angularVelocity -= impulse.MatrixMultiplication(*rbA->GetInvertWorld());
+        }
+        if (!rbB->IsKinematic()) {
+            rbB->angularVelocity += impulse.MatrixMultiplication(*rbB->GetInvertWorld());
+        }
     }
 }

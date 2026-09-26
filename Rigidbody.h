@@ -5,6 +5,7 @@
 #ifndef BERESHITCORE_RIGIDBODY_H
 #define BERESHITCORE_RIGIDBODY_H
 
+#include <vector>
 #include "Component.h"
 #include "Transform.h"
 #include "Vector3.h"
@@ -59,7 +60,14 @@ public:
     }
     [[nodiscard]] double GetMass() const {
         return mass;
-    }[[nodiscard]] double GetInvMass() const {
+    }
+    [[nodiscard]] Vector3 GetInertia() const {
+        return inertia;
+    }
+    // Override the box inertia computed in attach() (principal moments in the body frame, kg*m^2).
+    // Call after the body was added to its GameObject.
+    void SetInertia(const Vector3& principal);
+    [[nodiscard]] double GetInvMass() const {
         return invMass;
     }
 
@@ -94,6 +102,10 @@ public:
     void ForceIntegrate(double dt);
     static void PositionalCorrection(const Rigidbody&, const Rigidbody&, double,const Vector3&, double);
     static void SolveImpulse(Rigidbody& rb1, Rigidbody& rb2, const Vector3& contact_point, const Vector3& normal, double penetration, double dt);
+    // Sequential impulses with per-contact accumulation (call once per solver iteration).
+    static void SolveContact(struct Contact& contact, double dt);
+    static void SolveContactsJacobi(std::vector<struct Contact>& contacts, double dt, int passes);
+    static double EffectiveInverseMass(Rigidbody& rb1, Rigidbody& rb2, const Vector3& r1, const Vector3& r2, const Vector3& direction);
     double (*GetInvertWorld())[3][3] {
         return &InvertWorld;
     }

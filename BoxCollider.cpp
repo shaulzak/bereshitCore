@@ -278,12 +278,14 @@ RayCastHit BoxCollider::RayBoxIntersection(const Vector3 &rayOrigin, const Vecto
     return hit;
 }
 
+// The box's own axes in the world. R maps world -> local, so they are R's rows (the columns of R^T, the
+// same as GetAxes(quaternion.Conjugate()) below). This returned the columns - the axes of the inverse rotation.
 std::array<Vector3, 3> BoxCollider::GetAxes(const Quaternion &quaternion, Cache &cache) {
     auto R = quaternion.ToMatrix3(&cache);
     return {
-        Vector3(R[0][0], R[1][0], R[2][0]).normalized(),
-        Vector3(R[0][1], R[1][1], R[2][1]).normalized(),
-        Vector3(R[0][2], R[1][2], R[2][2]).normalized()
+        Vector3(R[0][0], R[0][1], R[0][2]).normalized(),
+        Vector3(R[1][0], R[1][1], R[1][2]).normalized(),
+        Vector3(R[2][0], R[2][1], R[2][2]).normalized()
     };
 }
 

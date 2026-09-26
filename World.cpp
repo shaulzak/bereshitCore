@@ -193,11 +193,12 @@ std::vector<GameObject*> World::search_by_component(std::string name) const {
     return results;
 }
 
-void World::SolveCollections(const std::vector<Contact> &contacts, double dt) {
-    for (const auto& contact : contacts) {
-        Rigidbody::SolveImpulse(contact.rb1, contact.rb2, contact.contact_point, contact.normal, contact.penetration, dt);
-        // Rigidbody::SolveFrictionImpulse(contact.rb1, contact.rb2, contact.contact_point, contact.normal, dt);
-    }
+void World::SolveCollections(std::vector<Contact> &contacts, double dt) {
+    // In parallel, not one contact after another (see Rigidbody::SolveContactsJacobi): the result must not
+    // depend on the contacts' order, or mirror-image motions come out different. One parallel pass converges
+    // slower than a sequential one (a robot left standing kept rocking forward/back), 4 match it.
+    constexpr int kContactPasses = 4;
+    Rigidbody::SolveContactsJacobi(contacts, dt, kContactPasses);
 }
 
 void World::CorrectPositions(const std::vector<Contact> &contacts) {
@@ -213,7 +214,12 @@ void World::CorrectPositions(const std::vector<Contact> &contacts) {
 
 void World::SolveJoints(const std::vector<Joint*>& joints, double dt) {
     for (auto& joint : joints) {
-        joint->Solve(dt);
+        try {
+            joint->Solve(dt);
+        } catch (const std::exception&) {
+            // e.g. a singular effective-mass matrix in a degenerate pose: skip this joint for this
+            // iteration instead of aborting the whole step (and the Python training with it).
+        }
     }
 }
 

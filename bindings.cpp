@@ -222,6 +222,7 @@ PYBIND11_MODULE(bereshitCore, m) {
     .def_property_readonly("mass", &Rigidbody::GetMass)
 
     .def("apply_angular_impulse", &Rigidbody::ApplyAngularImpulse)
+    .def_property("inertia", &Rigidbody::GetInertia, &Rigidbody::SetInertia)
 
     .def_property_readonly("Iinv_world", [](Rigidbody& self) {
     double (*matrix)[3][3] = self.GetInvertWorld();
@@ -294,7 +295,11 @@ PYBIND11_MODULE(bereshitCore, m) {
     py::class_<HingeJoint, Joint, std::shared_ptr<HingeJoint>>(m, "HingeJoint")
     .def(py::init<GameObject*, Vector3, Vector3*, double>(),py::arg("bodyB"), py::arg("axis"),
         py::arg("anchor") = nullptr,py::arg("beta") = 0.2)
-    .def_property_readonly("axis_world", &HingeJoint::GetWorldAxis);
+    .def_property_readonly("axis_world", &HingeJoint::GetWorldAxis)
+    .def_readwrite("motor_enabled", &HingeJoint::motorEnabled)
+    .def_readwrite("motor_speed", &HingeJoint::motorSpeed)
+    .def_readwrite("max_motor_torque", &HingeJoint::maxMotorTorque)
+    .def_property_readonly("motor_impulse", &HingeJoint::GetMotorImpulse);
 
 
     py::class_<Collision>(m, "Collision")

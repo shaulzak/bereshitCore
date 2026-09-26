@@ -1,0 +1,12 @@
+# CMake / MSVC build output (rebuild per build.txt)
+build/
+cmake-build-*/
+out/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+.vs/

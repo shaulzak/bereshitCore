@@ -18,21 +18,19 @@ std::pair<Vector3, Vector3> Collider::GetAabb() const {
     if (!GetParent()->cache.aabbDirty) {
         return {cachedMin, cachedMax};
     }
-    if (GetParent()->cache.rotationDirtyAbs) {
-        auto abs_rot = GetQuaternion().ToMatrix3Abs(&GetParent()->cache);
-
-        // Compute world extents
-        auto worldHalf = halfSize.MatrixMultiplication(abs_rot);
-        cachedMin = GetPosition() - worldHalf;
-        cachedMax = GetPosition() + worldHalf;
-        // AABB min/max
-        GetParent()->cache.aabbDirty = false;
-        return {GetPosition() - worldHalf, GetPosition() + worldHalf};
-    }
-    cachedMin = GetPosition() - halfSize;
-    cachedMax = GetPosition() + halfSize;
+    // |R| is cached by ToMatrix3Abs itself. This used the unrotated size whenever that cache was clean (a body
+    // that moved without turning), and |R| h instead of |R^T| h: R maps world -> local, so that was the box
+    // under the inverse rotation - too short at some headings, and a tilted, turned box sank 6-13 mm into the
+    // floor before the contact was found.
+    const auto& abs_rot = GetQuaternion().ToMatrix3Abs(&GetParent()->cache);
+    const Vector3 worldHalf(
+        abs_rot[0][0] * halfSize.x + abs_rot[1][0] * halfSize.y + abs_rot[2][0] * halfSize.z,
+        abs_rot[0][1] * halfSize.x + abs_rot[1][1] * halfSize.y + abs_rot[2][1] * halfSize.z,
+        abs_rot[0][2] * halfSize.x + abs_rot[1][2] * halfSize.y + abs_rot[2][2] * halfSize.z);
+    cachedMin = GetPosition() - worldHalf;
+    cachedMax = GetPosition() + worldHalf;
     GetParent()->cache.aabbDirty = false;
-    return {GetPosition() - halfSize, GetPosition() + halfSize};
+    return {cachedMin, cachedMax};
 }
 
 std::vector<std::pair<Collider*, Collider*>>

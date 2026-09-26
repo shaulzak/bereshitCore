@@ -75,42 +75,37 @@ void Joint::SetAngular(const Vector3& R, const double (&I)[3][3]) {
     double izz = I[2][2];
 
 
-    // Column X
-    double cx_y = R.z;
-    double cx_z = -R.y;
+    (void)ixx; (void)ixy; (void)ixz; (void)iyx; (void)iyy; (void)iyz; (void)izx; (void)izy; (void)izz;
+    // K = invMass * I3 (diagonal, set by the caller) + C^T * I * C. The full product is needed: the old
+    // hand-expanded version dropped terms that are only zero when I is diagonal in world, i.e. for an
+    // unrotated body, so every bent knee got a wrong effective mass.
+    double M[3][3];
+    CrossInertiaCross(R, I, M);
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            K[i][j] = (i == j ? K[i][j] : 0.0) + M[i][j];
+        }
+    }
+}
 
-
-    double ix_y = iyy * R.z - iyz * R.y;
-    double ix_z = izy * R.z - izz * R.y;
-
-    // Column Y
-    double cy_x = -R.z;
-    double cy_z = R.x;
-
-    double iy_x = -ixx * R.z + ixz * R.x;
-    double iy_z = -izx * R.z + izz * R.x;
-
-    // Column Z
-    double cz_x = R.y;
-    double cz_y = -R.x;
-
-    double iz_x = ixx * R.y - ixy * R.x;
-    double iz_y = iyx * R.y - iyy * R.x;
-
-    // K += C^T * I * C
-
-    K[0][0] += cx_y * ix_y + cx_z * ix_z;
-    K[0][1] = cx_z * iy_z;
-    K[0][2] = cx_y * iz_y;
-
-    K[1][0] = cy_z * ix_z;
-    K[1][1] += cy_x * iy_x + cy_z * iy_z;
-    K[1][2] = cy_x * iz_x;
-
-    K[2][0] = cz_y * ix_y;
-    K[2][1] = cz_x * iy_x;
-    K[2][2] += cz_x * iz_x + cz_y * iz_y;
-
+void Joint::CrossInertiaCross(const Vector3& R, const double (&I)[3][3], double (&M)[3][3]) {
+    // C = columns cx = (0, rz, -ry), cy = (-rz, 0, rx), cz = (ry, -rx, 0); M = C^T * I * C.
+    const double C[3][3] = {
+        {0.0, -R.z, R.y},
+        {R.z, 0.0, -R.x},
+        {-R.y, R.x, 0.0},
+    };
+    double IC[3][3];
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            IC[i][j] = I[i][0] * C[0][j] + I[i][1] * C[1][j] + I[i][2] * C[2][j];
+        }
+    }
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            M[i][j] = C[0][i] * IC[0][j] + C[1][i] * IC[1][j] + C[2][i] * IC[2][j];
+        }
+    }
 }
 
 void Joint::AddAngular(const Vector3& R, const double (&I)[3][3]) {
@@ -134,42 +129,14 @@ void Joint::AddAngular(const Vector3& R, const double (&I)[3][3]) {
     double izz = I[2][2];
 
 
-    // Column X
-    double cx_y = R.z;
-    double cx_z = -R.y;
-
-
-    double ix_y = iyy * R.z - iyz * R.y;
-    double ix_z = izy * R.z - izz * R.y;
-
-    // Column Y
-    double cy_x = -R.z;
-    double cy_z = R.x;
-
-    double iy_x = -ixx * R.z + ixz * R.x;
-    double iy_z = -izx * R.z + izz * R.x;
-
-    // Column Z
-    double cz_x = R.y;
-    double cz_y = -R.x;
-
-    double iz_x = ixx * R.y - ixy * R.x;
-    double iz_y = iyx * R.y - iyy * R.x;
-
-    // K += C^T * I * C
-
-    K[0][0] += cx_y * ix_y + cx_z * ix_z;
-    K[0][1] += cx_z * iy_z;
-    K[0][2] += cx_y * iz_y;
-
-    K[1][0] += cy_z * ix_z;
-    K[1][1] += cy_x * iy_x + cy_z * iy_z;
-    K[1][2] += cy_x * iz_x;
-
-    K[2][0] += cz_y * ix_y;
-    K[2][1] += cz_x * iy_x;
-    K[2][2] += cz_x * iz_x + cz_y * iz_y;
-
+    (void)ixx; (void)ixy; (void)ixz; (void)iyx; (void)iyy; (void)iyz; (void)izx; (void)izy; (void)izz;
+    double M[3][3];
+    CrossInertiaCross(R, I, M);
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            K[i][j] += M[i][j];
+        }
+    }
 }
 
 Vector3 Joint::Solve3x3(const Vector3 &b) {
@@ -270,9 +237,13 @@ void Joint::attach(GameObject &obj) {
     if (!hasWorldAnchor) {
         CastAnchor();
         hasWorldAnchor = true;
+    } else {
+        // An explicit anchor was given: CastAnchor() isn't called, so set up what it would have.
+        initialRelativeRotation = (bodyA->transform.quaternion.Inverse() * transformB->quaternion);
+        // Rotate() maps world -> local (RotateConjugated is local -> world, as the solvers use it).
+        localAnchorA = transformA->quaternion.Rotate(worldAnchor - transformA->position);
+        localAnchorB = transformB->quaternion.Rotate(worldAnchor - transformB->position);
     }
-
-
 }
 
 void Joint::CastAnchor() {
@@ -287,11 +258,10 @@ void Joint::CastAnchor() {
     }
     initialRelativeRotation = (bodyA->transform.quaternion.Inverse() * transformB->quaternion);
 
-    localAnchorA = transformA->quaternion.RotateConjugated(worldAnchor - transformA->position);
-    localAnchorB = transformB->quaternion.RotateConjugated(worldAnchor - transformB->position);
-
-
-
+    // Rotate() maps world -> local; the solvers map back with RotateConjugated(). Using
+    // RotateConjugated here too was only right for bodies that start unrotated.
+    localAnchorA = transformA->quaternion.Rotate(worldAnchor - transformA->position);
+    localAnchorB = transformB->quaternion.Rotate(worldAnchor - transformB->position);
 }
 
 void Joint::CastAnchor(Vector3 anchor) {

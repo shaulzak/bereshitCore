@@ -45,6 +45,7 @@ class Joint : public Component{
 
         void SetAngular(const Vector3& R, const double (&I)[3][3]);
         void AddAngular(const Vector3& R, const double (&I)[3][3]);
+        static void CrossInertiaCross(const Vector3& R, const double (&I)[3][3], double (&M)[3][3]);
 
         Vector3 Solve3x3(const Vector3&);
         Vector2 Solve2x2(const Vector2 &beta, Vector2(&K)[2]);
