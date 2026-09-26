@@ -4,6 +4,7 @@
 
 #include "Rigidbody.h"
 #include <cmath>
+#include <unordered_map>
 #include "Contact.h"
 #include "GameObject.h"
 #include "World.h"
@@ -356,10 +357,23 @@ void Rigidbody::SolveContactsJacobi(std::vector<Contact> &contacts, double dt, i
     constexpr double kRestitutionThreshold = 0.5;
     constexpr double kBaumgarte = 0.2;
     constexpr double kSlop = 0.002;
+    constexpr double kMaxRecovery = 0.5;            // m/s: World::CorrectPositions also pushes out, and this
+                                                    // velocity stays on the body - a deep overlap must not launch it
     const size_t count = contacts.size();
     auto relativeVelocity = [](const Contact &c) {
         return (c.rb2.velocity - c.rb2.angularVelocity.cross(c.r2)) - (c.rb1.velocity - c.rb1.angularVelocity.cross(c.r1));
     };
+    // Contacts per moving body: each contact's impulse is found as if it alone stopped the body, so it is shared
+    // among all the contacts pushing that body - not only those with the same partner (a box across two floor
+    // tiles got the full push from each tile, overshot, and flipped back every pass).
+    thread_local std::unordered_map<const Rigidbody*, int> contactsPerBody;
+    if (count > 0 && !contacts[0].prepared) {
+        contactsPerBody.clear();
+        for (const Contact &c : contacts) {
+            if (!c.rb1.isKinematic) ++contactsPerBody[&c.rb1];
+            if (!c.rb2.isKinematic) ++contactsPerBody[&c.rb2];
+        }
+    }
     for (size_t i = 0; i < count; ++i) {
         Contact &c = contacts[i];
         c.rb1.ForceIntegrate(dt);
@@ -368,10 +382,8 @@ void Rigidbody::SolveContactsJacobi(std::vector<Contact> &contacts, double dt, i
             continue;
         }
         c.prepared = true;
-        int k = 0;
-        for (size_t j = 0; j < count; ++j) {
-            k += (&contacts[j].rb1 == &c.rb1 && &contacts[j].rb2 == &c.rb2) ? 1 : 0;
-        }
+        const int k = std::max(c.rb1.isKinematic ? 1 : contactsPerBody[&c.rb1],
+                               c.rb2.isKinematic ? 1 : contactsPerBody[&c.rb2]);
         c.share = 1.0 / k;
         c.r1 = c.contact_point - c.rb1.transform->position;
         c.r2 = c.contact_point - c.rb2.transform->position;
@@ -379,7 +391,7 @@ void Rigidbody::SolveContactsJacobi(std::vector<Contact> &contacts, double dt, i
         const double vn0 = relativeVelocity(c).dot(n);
         const double restitution = FindRestitution(c.rb1, c.rb2, vn0);
         const double bounce = vn0 < -kRestitutionThreshold ? -restitution * vn0 : 0.0;
-        const double recovery = kBaumgarte / dt * std::max(c.penetration - kSlop, 0.0);
+        const double recovery = std::min(kBaumgarte / dt * std::max(c.penetration - kSlop, 0.0), kMaxRecovery);
         c.velocityBias = std::max(bounce, recovery);
         // tangent1 along the slip, so the friction doesn't depend on how the world axes lie; a fixed one when
         // the contact isn't sliding (then friction is solved exactly with the full 2x2 mass, any basis will do)

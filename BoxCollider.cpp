@@ -222,16 +222,20 @@ std::array<std::array<double, 3>, 3> Transpose(const std::array<std::array<doubl
 RayCastHit BoxCollider::RayObbIntersection(const Vector3 &rayOrigin, const Vector3 &rayDirection,
     const Vector3 &boxCenter,const std::array<std::array<double, 3>, 3>& rotationMatrix, const Vector3 &halfSize) const {
 
-    auto invRot = Transpose(rotationMatrix);
+    // R maps world -> local (see GetAxes), so the ray goes into the box frame with R and the hit comes back with R^T.
+    // This used R^T on the way in (the box under the inverse rotation) and returned the local hit plus the position.
+    Vector3 localOrigin = (rayOrigin - boxCenter).MatrixMultiplication(rotationMatrix);
 
-    Vector3 localOrigin = (rayOrigin - boxCenter).MatrixMultiplication(invRot);
-
-    Vector3 local_dir = rayDirection.MatrixMultiplication(invRot);
+    Vector3 local_dir = rayDirection.MatrixMultiplication(rotationMatrix);
 
     Vector3 box_min = -halfSize;
     Vector3 box_max = halfSize;
 
-    return RayBoxIntersection(localOrigin, local_dir, box_min, box_max);
+    RayCastHit hit = RayBoxIntersection(localOrigin, local_dir, box_min, box_max);
+    if (hit.collider != nullptr) {
+        hit.point = (hit.point - GetPosition()).MatrixMultiplication(Transpose(rotationMatrix)) + boxCenter;
+    }
+    return hit;
 
 }
 
