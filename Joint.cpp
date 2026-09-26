@@ -252,7 +252,12 @@ void Joint::attach(GameObject &obj) {
 }
 
 void Joint::CastAnchor() {
-    auto hit = Physics::RayCast(transformA->position, (transformB->position - transformA->position), bodyB->GetComponent<Collider>());
+    // The ray is cast at bodyB's collider only. Without one, RayCast searched every collider in the world (and
+    // crashed when there was no world yet): the anchor is bodyB's position then.
+    RayCastHit hit;
+    if (const Collider* colliderB = bodyB->GetComponent<Collider>()) {
+        hit = Physics::RayCast(transformA->position, (transformB->position - transformA->position), colliderB);
+    }
 
     if (hit.collider != nullptr) {
         worldAnchor = hit.point;
