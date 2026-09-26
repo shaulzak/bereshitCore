@@ -7,6 +7,14 @@
 #include "Rigidbody.h"
 
 
+FixedJoint* FixedJoint::Copy() const {
+    // without it a copy was a plain Joint, which holds nothing
+    FixedJoint* joint = new FixedJoint(bodyB, nullptr, beta);
+    joint->CastAnchor(worldAnchor);
+    return joint;
+}
+
+
 
 
 void FixedJoint::SolveLinear(double dt) {

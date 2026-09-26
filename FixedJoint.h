@@ -14,6 +14,7 @@ private:
 
 public:
     using Joint::Joint;
+    FixedJoint* Copy() const override;
 };
 
 

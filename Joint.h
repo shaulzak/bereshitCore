@@ -27,7 +27,7 @@ class Joint : public Component{
         Rigidbody* rbB = nullptr;
         Rigidbody* rbA = nullptr;
         GameObject* bodyB;
-        GameObject* bodyA;
+        GameObject* bodyA = nullptr;
         Vector3 localAnchorB;
         Vector3 localAnchorA;
         Quaternion initialRelativeRotation;
@@ -81,6 +81,8 @@ class Joint : public Component{
         Vector3 GetAnchor() {
             return worldAnchor;
         }
+        GameObject* GetBodyB() const { return bodyB; }
+        void SetBodyB(GameObject* body);   // only before attach: a copy is pointed at the copied body
 
 
     virtual void Solve(double dt);

@@ -149,6 +149,9 @@ GameObject* GameObject::CopyHierarchy(const GameObject* original,GameObjectMap& 
 
     for (Component* component : original->components) {
         Component* copiedComponent = component->Copy();
+        if (copiedComponent == nullptr) {
+            continue;   // a component without Copy() (every Python one) isn't copied
+        }
 
         copied->components.push_back(copiedComponent);
         copiedComponent->SetParent(copied);

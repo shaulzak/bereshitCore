@@ -169,7 +169,6 @@ PYBIND11_MODULE(bereshitCore, m) {
     .def("set_default", &GameObject::SetDefault)
     .def_readwrite("Cache", &GameObject::cache)
     .def_readonly("transform", &GameObject::transform)
-    .def("deep_copy", &GameObject::DeepCopy)
     .def("findTheCenterOfMass", &GameObject::FindTheCenterOfMass)
     .def_property_readonly("components",static_cast<const std::vector<Component*>& (GameObject::*)() const>(&GameObject::GetComponents),py::return_value_policy::reference_internal)
     .def("get_all_children_physics",py::overload_cast<>(&GameObject::GetAllChildrenPhysics, py::const_))
@@ -271,6 +270,7 @@ PYBIND11_MODULE(bereshitCore, m) {
     .def(py::init<bool>(), py::arg("is_trigger") = false);
     py::class_<Joint, Component, std::shared_ptr<Joint>>(m, "Joint")
     .def("cast_anchor", py::overload_cast<>(&Joint::CastAnchor))
+    .def_property("body_b", &Joint::GetBodyB, &Joint::SetBodyB, py::return_value_policy::reference)
     .def(
     py::init<
         GameObject*,

@@ -18,10 +18,15 @@ void Joint::RemapReferences(const GameObjectMap& objectMap)
 
     if (it != objectMap.end()) {
         bodyB = it->second;
-    } else {
-        // bodyB was outside the copied hierarchy.
-        bodyB = nullptr;
     }
+    // else bodyB is outside the copied hierarchy: the copy stays on it (nullptr crashed attach())
+}
+
+void Joint::SetBodyB(GameObject* body) {
+    if (bodyA != nullptr) {
+        throw std::logic_error("a joint's other body can only be set before it's added to an object");
+    }
+    bodyB = body;
 }
 
 void Joint::AddMatrix(const std::array<std::array<double, 3>, 3> &IA,
