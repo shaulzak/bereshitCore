@@ -121,34 +121,11 @@ World::World(bool *running_flag, std::vector<GameObject *> children, GameObject*
 }
 
 void World::AddChild(GameObject *child) {
-    child->setWorld(this);
+    // child was just linked under an object of this world. Rebuild every list with the same rules as the
+    // constructor: adding it piecemeal missed its Rigidbody (no gravity, never integrated), took colliders
+    // without a Rigidbody (dereferenced by the contact search) and joints of objects outside the physics.
     SetChildWorld(child);
-    cacheAllChildren.push_back(child);
-    child->GetAllChildren(cacheAllChildren);
-    child->GetAllChildrenPhysics(cachePhysicsChildren);
-    child->GetAllChildrenColliders(cacheColliders);
-    child->GetAllChildrenJoints(cacheJoints);
-
-    Rigidbody* rigidbody = child->GetComponent<Rigidbody>();
-    if (rigidbody != nullptr) {
-        cachePhysicsChildren.push_back(child);
-    }
-
-    Collider* collider = child->GetComponent<Collider>();
-    if (collider != nullptr) {
-        cacheColliders.push_back(collider);
-    }
-
-    auto joints = child->GetComponents<Joint>();
-    if (!joints.empty()) {
-        for (auto* joint : joints) {
-            cacheJoints.push_back(joint);
-        }
-    }
-
-
-    allChildrenDirty = false;
-    physicsChildrenDirty = false;
+    SetCache();
 }
 
 void World::SetChildWorld(GameObject *object) {

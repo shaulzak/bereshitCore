@@ -11,7 +11,9 @@
 #include "World.h"
 
 Vector3 HingeJoint::GetWorldAxis() {
-    return transformB->quaternion.RotateConjugated(axisLocal).normalized();
+    // In A's frame, like the constraint and the motor: with B's, a body turned relative to the other at the
+    // start reported an axis the joint doesn't turn about.
+    return transformA->quaternion.RotateConjugated(axisLocal).normalized();
 }
 
 HingeJoint::HingeJoint(GameObject* bodyB, Vector3 axis, Vector3* anchor, double beta) : Joint(bodyB, anchor, beta) {
@@ -21,6 +23,9 @@ HingeJoint::HingeJoint(GameObject* bodyB, Vector3 axis, Vector3* anchor, double 
 HingeJoint * HingeJoint::Copy() const {
     HingeJoint* hinge_joint = new HingeJoint(bodyB,axisLocal, nullptr, beta);
     hinge_joint->CastAnchor(worldAnchor);
+    hinge_joint->motorEnabled = motorEnabled;
+    hinge_joint->motorSpeed = motorSpeed;
+    hinge_joint->maxMotorTorque = maxMotorTorque;
     return hinge_joint;
 }
 
@@ -131,7 +136,7 @@ void HingeJoint::SolveAngular(double dt) {
             if (!std::isfinite(lambda)) {
                 lambda = 0.0;
             }
-            double maxImpulse = maxMotorTorque * dt;
+            double maxImpulse = std::abs(maxMotorTorque) * dt;   // a negative limit clamped to a constant push
             double previous = motorImpulse;
             motorImpulse = std::max(std::min(previous + lambda, maxImpulse), -maxImpulse);
             Vector3 motor_impulse = axis_world * (motorImpulse - previous);
@@ -160,7 +165,7 @@ void HingeJoint::PhysicsUpdate(double dt) {
             return;
         }
     }
-    double maxImpulse = maxMotorTorque * dt;
+    double maxImpulse = std::abs(maxMotorTorque) * dt;
     motorImpulse = std::max(std::min(motorImpulse, maxImpulse), -maxImpulse);
     if (motorImpulse != 0.0) {
         Vector3 axis_world = transformA->quaternion.RotateConjugated(axisLocal).normalized();

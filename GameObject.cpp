@@ -246,12 +246,12 @@ GameObject* GameObject::DeepCopy() const {
 }
 
 void GameObject::AddChild(GameObject *child) {
-    if (world) {
-        world->AddChild(child);
-    }
     children.push_back(child);
     child->parent = this;
     child->transform.SetParentTransform(&transform);
+    if (world) {
+        world->AddChild(child);   // after linking it: the world rebuilds its lists from the hierarchy
+    }
 }
 
 void GameObject::SetDefault() {

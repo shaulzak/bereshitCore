@@ -33,6 +33,7 @@ private:
     };
     Vector3 invertInertia;
     Vector3 inertia;
+    bool customInertia = false;   // set by SetInertia: attach() keeps it instead of the box formula
     bool isKinematic = false;
     double mass = 1.0;
     double invMass = 1.0;
@@ -65,7 +66,7 @@ public:
         return inertia;
     }
     // Override the box inertia computed in attach() (principal moments in the body frame, kg*m^2).
-    // Call after the body was added to its GameObject.
+    // Before or after the body was added to its GameObject; copies keep it.
     void SetInertia(const Vector3& principal);
     [[nodiscard]] double GetInvMass() const {
         return invMass;

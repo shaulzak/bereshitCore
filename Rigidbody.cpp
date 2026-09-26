@@ -155,7 +155,9 @@ std::optional<std::tuple<double, Vector3, Vector3, Vector3, double>> Rigidbody::
 Rigidbody* Rigidbody::Copy() const {
     Rigidbody* rigidbody = new Rigidbody(mass, isKinematic, velocity, angularVelocity,
         useGravity, frictionCoefficient, restitution, freezeRotation);
-
+    if (customInertia) {
+        rigidbody->SetInertia(inertia);
+    }
     return rigidbody;
 }
 
@@ -544,6 +546,10 @@ void Rigidbody::attach(GameObject& obj) {
     Component::attach(obj);
     transform = &obj.transform;
     cache = &obj.cache;
+    if (customInertia) {
+        SetInertia(inertia);   // set by hand before the body was attached: not the box formula
+        return;
+    }
     double hx = transform->scale.x;
     double hy = transform->scale.y;
     double hz = transform->scale.z;
@@ -561,6 +567,7 @@ void Rigidbody::attach(GameObject& obj) {
 }
 
 void Rigidbody::SetInertia(const Vector3& principal) {
+    customInertia = true;
     inertia = principal;
     invertInertia = inertia.Inverse();
     invertInertiaMetrix[0][0] = invertInertia.x;
